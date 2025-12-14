@@ -1,11 +1,12 @@
 slug: presence_sim
 name: Presence Simulation
 description: Anwesenheitssimulation mit Ingress UI, Recorder-Auswertung, Zeitfenster & Vorschau
-version: "1.0.4"
+version: "1.0.5"
 
 startup: services
 boot: auto
 ingress: true
+hassio_api: true
 
 panel_icon: mdi:home-lightbulb
 panel_title: Anwesenheitssimulation
