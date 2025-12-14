@@ -1,8 +1,28 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
-<head><title>Presence Simulation</title></head>
-<body>
-<h1>Anwesenheitssimulation</h1>
-<p>Add-on erfolgreich geladen.</p>
-</body>
+  <head>
+    <title>Anwesenheitssimulation</title>
+  </head>
+  <body>
+    <h2>Anwesenheitssimulation</h2>
+
+    <label>Entitäten auswählen:</label><br />
+    <select id="entities" multiple size="10"></select>
+
+    <script>
+      async function loadEntities() {
+        const res = await fetch("/api/entities");
+        const entities = await res.json();
+        const select = document.getElementById("entities");
+
+        entities.forEach((e) => {
+          const opt = document.createElement("option");
+          opt.value = e.id;
+          opt.textContent = e.name;
+          select.appendChild(opt);
+        });
+      }
+      loadEntities();
+    </script>
+  </body>
 </html>
