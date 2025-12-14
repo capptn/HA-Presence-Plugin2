@@ -1,0 +1,40 @@
+name: Presence Simulation
+slug: presence_sim
+description: Anwesenheitssimulation mit Ingress UI, Zeitfenster, Vorschau und Recorder-Auswertung
+version: "1.0.0"
+startup: services
+boot: auto
+ingress: true
+panel_icon: mdi:home-lightbulb
+panel_title: Anwesenheitssimulation
+host_network: true
+arch:
+  - amd64
+  - aarch64
+  - armv7
+init: false
+options:
+  interval_min: 5
+  slot_minutes: 15
+  training_days: 14
+  start_time: "18:00"
+  end_time: "23:30"
+  randomness: 0.15
+  entities: []
+  darkness_mode: "sun"
+  darkness_entity: "sun.sun"
+  dark_state: "below_horizon"
+  lux_threshold: 30
+schema:
+  interval_min: int(1,60)
+  slot_minutes: int(5,60)
+  training_days: int(1,60)
+  start_time: str
+  end_time: str
+  randomness: float(0,1)
+  entities:
+    - str
+  darkness_mode: list(sun|lux|none)
+  darkness_entity: str
+  dark_state: str
+  lux_threshold: int(0,200000)
