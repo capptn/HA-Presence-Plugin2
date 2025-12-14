@@ -64,7 +64,7 @@ def simulation_loop():
 
     while simulation_running:
         now = datetime.now().replace(second=0, microsecond=0)
-
+        print("Simulation tick at", now.strftime("%H:%M"));
         for action in planned_actions[:]:
             if action["time"] <= now:
                 domain = action["entity"].split(".")[0]
