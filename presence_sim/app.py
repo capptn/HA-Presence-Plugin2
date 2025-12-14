@@ -19,7 +19,7 @@ DEFAULT_CONFIG = {
     "slot_minutes": 15,
     "lookback_days": 14,
     "window_start": "18:00",
-    "window_end": "23:30"
+    "window_end": "23:59"
 }
 
 simulation_running = False
