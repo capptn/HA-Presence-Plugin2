@@ -11,7 +11,7 @@
 
     <script>
       async function loadEntities() {
-        const res = await fetch("/api/entities");
+        const res = await fetch("api/entities");
         const entities = await res.json();
         const select = document.getElementById("entities");
 
