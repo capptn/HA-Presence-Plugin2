@@ -10,24 +10,20 @@ TOKEN = os.environ.get("SUPERVISOR_TOKEN")
 @app.route("/api/entities")
 def api_entities():
     if not TOKEN:
-        return jsonify({
-            "error": "SUPERVISOR_TOKEN missing",
-            "hint": "Dieses Add-on muss unter Home Assistant Supervisor laufen."
-        }), 500
+        return jsonify([])  # 👈 IMMER Array zurückgeben
 
     headers = {
         "Authorization": f"Bearer {TOKEN}",
         "Content-Type": "application/json",
     }
 
-    r = requests.get(f"{HA_URL}/states", headers=headers, timeout=10)
-
-    if r.status_code != 200:
-        return jsonify({
-            "error": "Home Assistant API error",
-            "status": r.status_code,
-            "response": r.text
-        }), 500
+    try:
+        r = requests.get(f"{HA_URL}/states", headers=headers, timeout=10)
+        r.raise_for_status()
+    except Exception as e:
+        # 👇 FEHLER LOGGEN, aber FRONTEND NICHT CRASHEN
+        print("API ERROR:", e)
+        return jsonify([])
 
     entities = []
     for s in r.json():
