@@ -5,6 +5,8 @@ import threading
 import time
 import requests
 from datetime import datetime, timedelta
+from engine import build_probability_map
+from scheduler import plan_day, planned_actions
 
 app = Flask(__name__, static_folder="web", static_url_path="")
 
@@ -44,28 +46,25 @@ def get_headers():
 # -----------------------------
 def simulation_loop():
     global simulation_running
-    print("Simulation gestartet")
 
     while simulation_running:
-        cfg = load_config()
-        entities = cfg.get("entities", [])
+        now = datetime.now().replace(second=0, microsecond=0)
 
-        for entity_id in entities:
-            domain = entity_id.split(".")[0]
-            service = "turn_on"
+        for action in planned_actions[:]:
+            if action["time"] <= now:
+                domain = action["entity"].split(".")[0]
+                try:
+                    requests.post(
+                        f"{HA_URL}/services/{domain}/{action['action']}",
+                        headers=get_headers(),
+                        json={"entity_id": action["entity"]},
+                        timeout=10,
+                    )
+                except:
+                    pass
+                planned_actions.remove(action)
 
-            try:
-                requests.post(
-                    f"{HA_URL}/services/{domain}/{service}",
-                    headers=get_headers(),
-                    json={"entity_id": entity_id},
-                    timeout=10,
-                )
-                print(f"Simulated ON: {entity_id}")
-            except Exception as e:
-                print("Simulation error:", e)
-
-        time.sleep(60)  # alle 60 Sekunden
+        time.sleep(30)
 
 
 # -----------------------------
@@ -105,8 +104,15 @@ def api_config():
 def api_start():
     global simulation_running, simulation_thread
 
-    if simulation_running:
-        return jsonify({"running": True})
+    cfg = load_config()
+    prob_maps = {}
+
+    for e in cfg["entities"]:
+        prob_maps[e] = build_probability_map(
+            e, cfg.get("lookback_days", 14), cfg["slot_minutes"]
+        )
+
+    plan_day(cfg["entities"], prob_maps, cfg)
 
     simulation_running = True
     simulation_thread = threading.Thread(target=simulation_loop, daemon=True)
@@ -141,18 +147,14 @@ def catch_all(path):
 
 @app.route("/api/preview")
 def api_preview():
-    cfg = load_config()
-    out = []
-    now = datetime.now()
-
-    for i, entity in enumerate(cfg.get("entities", [])):
-        out.append({
-            "time": (now + timedelta(minutes=5*(i+1))).strftime("%H:%M"),
-            "entity": entity,
-            "action": "turn_on"
-        })
-
-    return jsonify(out)
+    return jsonify([
+        {
+            "time": a["time"].strftime("%H:%M"),
+            "entity": a["entity"],
+            "action": a["action"]
+        }
+        for a in planned_actions[:10]
+    ])
 
 
 if __name__ == "__main__":
