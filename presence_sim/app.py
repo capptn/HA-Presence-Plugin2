@@ -7,6 +7,15 @@ app = Flask(__name__, static_folder="web", static_url_path="")
 HA_URL = "http://supervisor/core/api"
 TOKEN = os.environ.get("SUPERVISOR_TOKEN")
 
+ALLOWED_DOMAINS = (
+    "light",
+    "switch",
+    "fan",
+    "input_boolean",
+    "scene",
+    "script"
+)
+
 @app.route("/api/entities")
 def api_entities():
     if not TOKEN:
@@ -31,7 +40,8 @@ def api_entities():
         if "." not in eid:
             continue
         domain = eid.split(".", 1)[0]
-        if domain in ("light", "switch", "fan"):
+        if domain in ALLOWED_DOMAINS:
+            print("FOUND ENTITY:", eid)
             entities.append({
                 "id": eid,
                 "name": s.get("attributes", {}).get("friendly_name", eid)
