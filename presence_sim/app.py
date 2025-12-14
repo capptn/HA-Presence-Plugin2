@@ -1,29 +1,44 @@
 from flask import Flask, jsonify, send_from_directory
-import os, requests
+import os
+import requests
 
 app = Flask(__name__, static_folder="web", static_url_path="")
 
 HA_URL = "http://supervisor/core/api"
 TOKEN = os.environ.get("SUPERVISOR_TOKEN")
 
-HEADERS = {
-    "Authorization": f"Bearer {TOKEN}",
-    "Content-Type": "application/json",
-}
-
 @app.route("/api/entities")
 def api_entities():
-    r = requests.get(f"{HA_URL}/states", headers=HEADERS, timeout=10)
-    r.raise_for_status()
+    if not TOKEN:
+        return jsonify({
+            "error": "SUPERVISOR_TOKEN missing",
+            "hint": "Dieses Add-on muss unter Home Assistant Supervisor laufen."
+        }), 500
+
+    headers = {
+        "Authorization": f"Bearer {TOKEN}",
+        "Content-Type": "application/json",
+    }
+
+    r = requests.get(f"{HA_URL}/states", headers=headers, timeout=10)
+
+    if r.status_code != 200:
+        return jsonify({
+            "error": "Home Assistant API error",
+            "status": r.status_code,
+            "response": r.text
+        }), 500
 
     entities = []
     for s in r.json():
-        eid = s["entity_id"]
-        domain = eid.split(".")[0]
+        eid = s.get("entity_id", "")
+        if "." not in eid:
+            continue
+        domain = eid.split(".", 1)[0]
         if domain in ("light", "switch", "fan"):
             entities.append({
                 "id": eid,
-                "name": s["attributes"].get("friendly_name", eid)
+                "name": s.get("attributes", {}).get("friendly_name", eid)
             })
 
     return jsonify(entities)
@@ -32,7 +47,6 @@ def api_entities():
 def index():
     return send_from_directory("web", "index.html")
 
-# ⚠️ GANZ WICHTIG: ganz am Ende!
 @app.route("/<path:path>")
 def catch_all(path):
     return send_from_directory("web", path)
