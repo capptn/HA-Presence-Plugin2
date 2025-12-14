@@ -1,38 +1,66 @@
 <!DOCTYPE html>
-<html>
+<html lang="de">
   <head>
+    <meta charset="UTF-8" />
     <title>Anwesenheitssimulation</title>
   </head>
   <body>
     <h2>Anwesenheitssimulation</h2>
 
     <label>Entitäten auswählen:</label><br />
-    <select id="entities" multiple size="10"></select>
+    <select id="entities" multiple size="10"></select
+    ><br /><br />
+
+    <button id="save">Speichern</button>
+    <button id="start">Start</button>
+    <button id="stop">Stop</button>
+
+    <p id="status"></p>
 
     <script>
       async function loadEntities() {
-        fetch("api/entities")
-          .then((r) => r.json())
-          .then((entities) => {
-            if (!Array.isArray(entities)) {
-              console.error("Ungültige Entity-Liste:", entities);
-              return;
-            }
+        const entities = await fetch("api/entities").then((r) => r.json());
+        const select = document.getElementById("entities");
 
-            const sel = document.getElementById("entities");
-            sel.innerHTML = "";
+        entities.forEach((e) => {
+          const opt = document.createElement("option");
+          opt.value = e.id;
+          opt.textContent = e.name;
+          select.appendChild(opt);
+        });
 
-            entities.forEach((e) => {
-              const opt = document.createElement("option");
-              opt.value = e.id;
-              opt.textContent = e.name;
-              sel.appendChild(opt);
-            });
-          })
-          .catch((err) => {
-            console.error("Entity Load Error:", err);
-          });
+        const cfg = await fetch("api/config").then((r) => r.json());
+        (cfg.entities || []).forEach((id) => {
+          const opt = [...select.options].find((o) => o.value === id);
+          if (opt) opt.selected = true;
+        });
       }
+
+      function selectedEntities() {
+        return [...document.getElementById("entities").selectedOptions].map(
+          (o) => o.value
+        );
+      }
+
+      document.getElementById("save").onclick = async () => {
+        await fetch("api/config", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ entities: selectedEntities() }),
+        });
+        document.getElementById("status").innerText = "Gespeichert ✅";
+      };
+
+      document.getElementById("start").onclick = async () => {
+        await fetch("api/start", { method: "POST" });
+        document.getElementById("status").innerText = "Simulation läuft ▶";
+      };
+
+      document.getElementById("stop").onclick = async () => {
+        await fetch("api/stop", { method: "POST" });
+        document.getElementById("status").innerText = "Simulation gestoppt ⏹";
+      };
+
       loadEntities();
     </script>
   </body>
