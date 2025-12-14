@@ -3,52 +3,104 @@
   <head>
     <meta charset="UTF-8" />
     <title>Anwesenheitssimulation</title>
+    <style>
+      body {
+        font-family: sans-serif;
+      }
+      .row {
+        display: flex;
+        gap: 20px;
+      }
+      select {
+        width: 280px;
+        height: 220px;
+      }
+      ul {
+        padding-left: 20px;
+      }
+      li {
+        margin-bottom: 6px;
+      }
+    </style>
   </head>
   <body>
     <h2>Anwesenheitssimulation</h2>
 
-    <label>Entitäten auswählen:</label><br />
-    <select id="entities" multiple size="10"></select
-    ><br /><br />
+    <div class="row">
+      <div>
+        <h4>Verfügbare Entitäten</h4>
+        <select id="available"></select
+        ><br /><br />
+        <button id="add">➕ Hinzufügen</button>
+      </div>
 
-    <button id="save">Speichern</button>
-    <button id="start">Start</button>
-    <button id="stop">Stop</button>
+      <div>
+        <h4>Aktive Entitäten</h4>
+        <ul id="active"></ul>
+      </div>
+    </div>
 
-    <p id="status"></p>
+    <br />
+
+    <button id="start">▶ Start</button>
+    <button id="stop">⏹ Stop</button>
+
+    <h3>Status</h3>
+    <p id="status">–</p>
+
+    <h3>Nächste geplante Aktionen</h3>
+    <ul id="preview"></ul>
 
     <script>
-      async function loadEntities() {
-        const entities = await fetch("api/entities").then((r) => r.json());
-        const select = document.getElementById("entities");
+      let activeEntities = [];
 
-        entities.forEach((e) => {
+      async function loadEntities() {
+        const list = await fetch("api/entities").then((r) => r.json());
+        const sel = document.getElementById("available");
+        sel.innerHTML = "";
+
+        list.forEach((e) => {
           const opt = document.createElement("option");
           opt.value = e.id;
           opt.textContent = e.name;
-          select.appendChild(opt);
-        });
-
-        const cfg = await fetch("api/config").then((r) => r.json());
-        (cfg.entities || []).forEach((id) => {
-          const opt = [...select.options].find((o) => o.value === id);
-          if (opt) opt.selected = true;
+          sel.appendChild(opt);
         });
       }
 
-      function selectedEntities() {
-        return [...document.getElementById("entities").selectedOptions].map(
-          (o) => o.value
-        );
+      function renderActive() {
+        const ul = document.getElementById("active");
+        ul.innerHTML = "";
+
+        activeEntities.forEach((id) => {
+          const li = document.createElement("li");
+          li.textContent = id + " ";
+          const btn = document.createElement("button");
+          btn.textContent = "✖";
+          btn.onclick = () => {
+            activeEntities = activeEntities.filter((e) => e !== id);
+            saveConfig();
+          };
+          li.appendChild(btn);
+          ul.appendChild(li);
+        });
       }
 
-      document.getElementById("save").onclick = async () => {
+      async function saveConfig() {
         await fetch("api/config", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ entities: selectedEntities() }),
+          body: JSON.stringify({ entities: activeEntities }),
         });
-        document.getElementById("status").innerText = "Gespeichert ✅";
+        renderActive();
+      }
+
+      document.getElementById("add").onclick = () => {
+        const sel = document.getElementById("available");
+        const id = sel.value;
+        if (id && !activeEntities.includes(id)) {
+          activeEntities.push(id);
+          saveConfig();
+        }
       };
 
       document.getElementById("start").onclick = async () => {
@@ -61,7 +113,27 @@
         document.getElementById("status").innerText = "Simulation gestoppt ⏹";
       };
 
+      async function loadConfig() {
+        const cfg = await fetch("api/config").then((r) => r.json());
+        activeEntities = cfg.entities || [];
+        renderActive();
+      }
+
+      async function loadPreview() {
+        const data = await fetch("api/preview").then((r) => r.json());
+        const ul = document.getElementById("preview");
+        ul.innerHTML = "";
+
+        data.forEach((p) => {
+          const li = document.createElement("li");
+          li.textContent = `${p.time} → ${p.entity} (${p.action})`;
+          ul.appendChild(li);
+        });
+      }
+
       loadEntities();
+      loadConfig();
+      setInterval(loadPreview, 5000);
     </script>
   </body>
 </html>

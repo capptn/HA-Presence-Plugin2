@@ -4,6 +4,7 @@ import json
 import threading
 import time
 import requests
+from datetime import datetime, timedelta
 
 app = Flask(__name__, static_folder="web", static_url_path="")
 
@@ -137,6 +138,21 @@ def index():
 @app.route("/<path:path>")
 def catch_all(path):
     return send_from_directory("web", path)
+
+@app.route("/api/preview")
+def api_preview():
+    cfg = load_config()
+    out = []
+    now = datetime.now()
+
+    for i, entity in enumerate(cfg.get("entities", [])):
+        out.append({
+            "time": (now + timedelta(minutes=5*(i+1))).strftime("%H:%M"),
+            "entity": entity,
+            "action": "turn_on"
+        })
+
+    return jsonify(out)
 
 
 if __name__ == "__main__":
