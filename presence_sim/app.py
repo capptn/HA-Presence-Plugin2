@@ -1,11 +1,10 @@
-import time
-import logging
+from flask import Flask
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("presence_sim")
+app = Flask(__name__)
 
-logger.info("Presence Simulation Add-on started")
+@app.route("/")
+def index():
+    return "Presence Simulation Add-on läuft"
 
-# Keep container alive
-while True:
-    time.sleep(60)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8099)
