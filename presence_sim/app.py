@@ -14,6 +14,14 @@ HA_URL = "http://supervisor/core/api"
 TOKEN = os.environ.get("SUPERVISOR_TOKEN")
 CFG_PATH = "/data/config.json"
 
+DEFAULT_CONFIG = {
+    "entities": [],
+    "slot_minutes": 15,
+    "lookback_days": 14,
+    "window_start": "18:00",
+    "window_end": "23:30"
+}
+
 simulation_running = False
 simulation_thread = None
 
@@ -22,10 +30,17 @@ simulation_thread = None
 # Helper
 # -----------------------------
 def load_config():
+    cfg = DEFAULT_CONFIG.copy()
+
     if os.path.exists(CFG_PATH):
-        with open(CFG_PATH, "r") as f:
-            return json.load(f)
-    return {"entities": []}
+        try:
+            with open(CFG_PATH, "r") as f:
+                stored = json.load(f)
+                cfg.update(stored)
+        except Exception as e:
+            print("Config load error:", e)
+
+    return cfg
 
 
 def save_config(cfg):
@@ -109,7 +124,7 @@ def api_start():
 
     for e in cfg["entities"]:
         prob_maps[e] = build_probability_map(
-            e, cfg.get("lookback_days", 14), cfg["slot_minutes"]
+            e, cfg.get("lookback_days", 14), cfg.get("slot_minutes", 15)
         )
 
     plan_day(cfg["entities"], prob_maps, cfg)
@@ -117,6 +132,7 @@ def api_start():
     simulation_running = True
     simulation_thread = threading.Thread(target=simulation_loop, daemon=True)
     simulation_thread.start()
+    save_config(cfg)
 
     return jsonify({"running": True})
 
