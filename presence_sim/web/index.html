@@ -209,7 +209,18 @@
           div.appendChild(row);
         });
       }
+      async function loadStatus() {
+        const s = await fetch("api/status").then((r) => r.json());
 
+        if (s.running) {
+          document.getElementById("status").innerText =
+            "Simulation läuft ▶ (seit " + s.started_at + ")";
+        } else {
+          document.getElementById("status").innerText = "Simulation gestoppt ⏹";
+        }
+      }
+
+      loadStatus();
       loadEntities();
       loadConfig();
       loadTimeline();

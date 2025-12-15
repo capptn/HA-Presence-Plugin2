@@ -26,8 +26,10 @@ DEFAULT_CONFIG = {
     "max_on_minutes": 45
 }
 
+STATE_PATH = "/data/state.json"
+
 simulation_running = False
-simulation_thread = None
+simulation_started_at = None
 
 
 # -----------------------------
@@ -59,7 +61,21 @@ def get_headers():
         "Content-Type": "application/json",
     }
 
+def save_state():
+    os.makedirs("/data", exist_ok=True)
+    with open(STATE_PATH, "w") as f:
+        json.dump({
+            "running": simulation_running,
+            "started_at": simulation_started_at
+        }, f)
 
+def load_state():
+    global simulation_running, simulation_started_at
+    if os.path.exists(STATE_PATH):
+        with open(STATE_PATH) as f:
+            state = json.load(f)
+            simulation_running = state.get("running", False)
+            simulation_started_at = state.get("started_at")
 # -----------------------------
 # Simulation Loop
 # -----------------------------
@@ -121,30 +137,34 @@ def api_config():
 
 @app.route("/api/start", methods=["POST"])
 def api_start():
-    global simulation_running, simulation_thread
+    global simulation_running, simulation_thread, simulation_started_at
+
+    if simulation_running:
+        return jsonify({"running": True})
 
     cfg = load_config()
-    prob_maps = {}
-
-    for e in cfg["entities"]:
-        prob_maps[e] = build_probability_map(
-            e, cfg.get("lookback_days", 14), cfg.get("slot_minutes", 15)
-        )
-
-    plan_day(cfg["entities"], prob_maps, cfg)
+    plan_day(cfg)
 
     simulation_running = True
-    simulation_thread = threading.Thread(target=simulation_loop, daemon=True)
+    simulation_started_at = datetime.now().strftime("%H:%M")
+    save_state()
+
+    simulation_thread = threading.Thread(
+        target=simulation_loop, daemon=True
+    )
     simulation_thread.start()
-    save_config(cfg)
 
     return jsonify({"running": True})
 
 
 @app.route("/api/stop", methods=["POST"])
 def api_stop():
-    global simulation_running
+    global simulation_running, simulation_started_at
+
     simulation_running = False
+    simulation_started_at = None
+    save_state()
+
     return jsonify({"running": False})
 
 
@@ -201,7 +221,13 @@ def api_heatmap():
         {"time": k, "value": v}
         for k, v in sorted(heat.items())
     ])
-
+@app.route("/api/status")
+def api_status():
+    return jsonify({
+        "running": simulation_running,
+        "started_at": simulation_started_at
+    })
 
 if __name__ == "__main__":
+    load_state()
     app.run(host="0.0.0.0", port=8099)
