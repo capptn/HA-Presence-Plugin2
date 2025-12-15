@@ -140,12 +140,14 @@
 
       document.getElementById("start").onclick = async () => {
         await fetch("api/start", { method: "POST" });
-        document.getElementById("status").innerText = "Simulation läuft ▶";
+        await loadStatus();
+        //document.getElementById("status").innerText = "Simulation läuft ▶";
       };
 
       document.getElementById("stop").onclick = async () => {
         await fetch("api/stop", { method: "POST" });
-        document.getElementById("status").innerText = "Simulation gestoppt ⏹";
+        await loadStatus();
+        //document.getElementById("status").innerText = "Simulation gestoppt ⏹";
       };
 
       async function loadConfig() {

@@ -152,6 +152,7 @@ def api_start():
         target=simulation_loop, daemon=True
     )
     simulation_thread.start()
+    
 
     return jsonify({"running": True})
 
@@ -166,10 +167,6 @@ def api_stop():
 
     return jsonify({"running": False})
 
-
-@app.route("/api/status")
-def api_status():
-    return jsonify({"running": simulation_running})
 
 
 # -----------------------------
