@@ -109,7 +109,7 @@ def api_entities():
     r = requests.get(f"{HA_URL}/states", headers=get_headers(), timeout=10)
     r.raise_for_status()
 
-    allowed = ("light", "switch", "fan", "input_boolean")
+    allowed = ("light", "switch", "fan", "input_boolean", "cover")
     out = []
 
     for s in r.json():
