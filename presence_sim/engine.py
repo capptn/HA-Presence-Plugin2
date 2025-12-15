@@ -2,6 +2,7 @@ import requests
 import os
 from datetime import datetime, timedelta
 from collections import defaultdict
+import statistics
 import random
 
 HA_URL = "http://supervisor/core/api"
@@ -12,6 +13,23 @@ HEADERS = {
     "Content-Type": "application/json",
 }
 
+# -------------------------
+# Zeit-Phasen
+# -------------------------
+def day_phase(dt):
+    h = dt.hour
+    if 5 <= h < 9:
+        return "morning"
+    if 9 <= h < 17:
+        return "day"
+    if 17 <= h < 23:
+        return "evening"
+    return "night"
+
+
+# -------------------------
+# Recorder History
+# -------------------------
 def fetch_history(entity_id, days):
     end = datetime.utcnow()
     start = end - timedelta(days=days)
@@ -29,28 +47,57 @@ def fetch_history(entity_id, days):
     return r.json()[0] if r.json() else []
 
 
-def group_by_day(history):
-    days = defaultdict(list)
+# -------------------------
+# Laufzeiten aus Historie
+# -------------------------
+def extract_on_durations(history):
+    """
+    Liefert:
+    {
+      "morning": [12, 8, 15],
+      "evening": [45, 62, 30]
+    }
+    """
+    durations = defaultdict(list)
+    last_on = None
+    last_phase = None
+
     for e in history:
+        state = e["state"]
         ts = datetime.fromisoformat(e["last_changed"])
-        day = ts.date()
-        days[day].append({
-            "time": ts.time(),
-            "state": e["state"]
-        })
-    return days
+
+        if state == "on":
+            last_on = ts
+            last_phase = day_phase(ts)
+
+        if state == "off" and last_on:
+            minutes = int((ts - last_on).total_seconds() / 60)
+            if 1 <= minutes <= 300:  # Plausibilitätsfilter
+                durations[last_phase].append(minutes)
+            last_on = None
+            last_phase = None
+
+    return durations
 
 
-def pick_random_day_pattern(history):
-    days = group_by_day(history)
-    if not days:
-        return None
+# -------------------------
+# Statistische Laufzeit
+# -------------------------
+def learned_runtime(durations, phase):
+    """
+    Gibt eine realistische Laufzeit in Minuten zurück
+    """
+    values = durations.get(phase, [])
 
-    day = random.choice(list(days.keys()))
-    return days[day]
+    if len(values) >= 3:
+        base = int(statistics.median(values))
+        jitter = random.randint(-5, 5)
+        return max(3, base + jitter)
 
+    # Fallbacks
+    if phase == "morning":
+        return random.randint(5, 15)
+    if phase == "evening":
+        return random.randint(25, 60)
 
-def jitter_time(base_time, minutes=10):
-    offset = random.randint(-minutes, minutes)
-    return (datetime.combine(datetime.today(), base_time)
-            + timedelta(minutes=offset)).time()
+    return random.randint(10, 30)

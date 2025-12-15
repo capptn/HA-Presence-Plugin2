@@ -1,52 +1,83 @@
 from datetime import datetime, timedelta
 import random
-from engine import fetch_history, pick_random_day_pattern
+
+from engine import (
+    fetch_history,
+    extract_on_durations,
+    learned_runtime,
+    day_phase,
+)
 
 planned_actions = []
+
+
+def in_window(t, start, end):
+    if start <= end:
+        return start <= t <= end
+    return t >= start or t <= end
+
 
 def plan_day(cfg):
     planned_actions.clear()
 
     now = datetime.now().replace(second=0, microsecond=0)
-    window_start = datetime.strptime(cfg["window_start"], "%H:%M").time()
-    window_end = datetime.strptime(cfg["window_end"], "%H:%M").time()
+    w_start = datetime.strptime(cfg["window_start"], "%H:%M").time()
+    w_end = datetime.strptime(cfg["window_end"], "%H:%M").time()
 
     for entity in cfg["entities"]:
         history = fetch_history(entity, cfg["lookback_days"])
+        durations = extract_on_durations(history)
 
-        # -------- Ebene 1: Muster-Replay --------
-        pattern = pick_random_day_pattern(history)
+        # -------- Muster-Replay --------
+        on_events = [
+            datetime.fromisoformat(e["last_changed"]).time()
+            for e in history
+            if e["state"] == "on"
+        ]
 
-        if pattern:
-            for p in pattern:
-                if p["state"] not in ("on", "off"):
+        if on_events:
+            sampled = random.sample(
+                on_events, min(len(on_events), 2)
+            )
+
+            for t in sampled:
+                if not in_window(t, w_start, w_end):
                     continue
 
-                t = jitter_time(p["time"], 10)
-                dt = now.replace(hour=t.hour, minute=t.minute)
+                dt_on = now.replace(hour=t.hour, minute=t.minute)
+                phase = day_phase(dt_on)
 
-                if window_start <= t <= window_end:
-                    planned_actions.append({
-                        "time": dt,
-                        "entity": entity,
-                        "action": "turn_" + p["state"]
-                    })
+                runtime = learned_runtime(durations, phase)
+                dt_off = dt_on + timedelta(minutes=runtime)
+
+                planned_actions.append({
+                    "time": dt_on,
+                    "entity": entity,
+                    "action": "turn_on"
+                })
+                planned_actions.append({
+                    "time": dt_off,
+                    "entity": entity,
+                    "action": "turn_off"
+                })
+
             continue
 
-        # -------- Ebene 2: Statistik (Fallback) --------
+        # -------- Fallback --------
         base = now.replace(
-            hour=window_start.hour,
-            minute=window_start.minute
-        )
+            hour=w_start.hour,
+            minute=w_start.minute
+        ) + timedelta(minutes=random.randint(10, 60))
+
+        runtime = learned_runtime({}, "evening")
 
         planned_actions.append({
-            "time": base + timedelta(minutes=random.randint(10, 60)),
+            "time": base,
             "entity": entity,
             "action": "turn_on"
         })
-
         planned_actions.append({
-            "time": base + timedelta(minutes=random.randint(90, 180)),
+            "time": base + timedelta(minutes=runtime),
             "entity": entity,
             "action": "turn_off"
         })

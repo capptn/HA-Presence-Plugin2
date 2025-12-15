@@ -1,7 +1,7 @@
 slug: presence_sim
 name: Presence Simulation
 description: Anwesenheitssimulation mit Ingress UI, Recorder-Auswertung, Zeitfenster & Vorschau
-version: "1.1.13"
+version: "1.1.14"
 
 startup: services
 boot: auto
