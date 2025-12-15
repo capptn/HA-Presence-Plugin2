@@ -51,6 +51,41 @@
     <h3>Nächste geplante Aktionen</h3>
     <ul id="preview"></ul>
 
+    <h3>Balken-Timeline</h3>
+    <div id="timeline"></div>
+
+    <style>
+      .timeline-row {
+        margin-bottom: 6px;
+      }
+      .bar {
+        display: inline-block;
+        height: 14px;
+        margin-left: 6px;
+      }
+      .on {
+        background: #ffd54f;
+      }
+      .off {
+        background: #ccc;
+      }
+    </style>
+    <h3>Heatmap (Aktivitätsdichte)</h3>
+    <div id="heatmap"></div>
+
+    <style>
+      .heat-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 4px;
+      }
+      .heat-bar {
+        height: 14px;
+        margin-left: 8px;
+        background: red;
+      }
+    </style>
+
     <script>
       let activeEntities = [];
 
@@ -131,10 +166,58 @@
           ul.appendChild(li);
         });
       }
+      async function loadTimeline() {
+        const data = await fetch("api/timeline").then((r) => r.json());
+        const div = document.getElementById("timeline");
+        div.innerHTML = "";
+
+        Object.keys(data).forEach((entity) => {
+          const row = document.createElement("div");
+          row.className = "timeline-row";
+          row.innerHTML = `<strong>${entity}</strong>`;
+
+          data[entity].forEach((a) => {
+            const bar = document.createElement("span");
+            bar.className = "bar " + (a.action === "turn_on" ? "on" : "off");
+            bar.style.width = "30px";
+            bar.title = `${a.time} ${a.action}`;
+            row.appendChild(bar);
+          });
+
+          div.appendChild(row);
+        });
+      }
+      async function loadHeatmap() {
+        const data = await fetch("api/heatmap").then((r) => r.json());
+        const div = document.getElementById("heatmap");
+        div.innerHTML = "";
+
+        data.forEach((h) => {
+          const row = document.createElement("div");
+          row.className = "heat-row";
+
+          const label = document.createElement("span");
+          label.textContent = h.time;
+
+          const bar = document.createElement("div");
+          bar.className = "heat-bar";
+          bar.style.width = h.value * 25 + "px";
+          bar.style.opacity = Math.min(1, h.value / 5);
+
+          row.appendChild(label);
+          row.appendChild(bar);
+          div.appendChild(row);
+        });
+      }
 
       loadEntities();
       loadConfig();
+      loadTimeline();
+      loadHeatmap();
+      loadPreview();
+      setInterval(loadHeatmap, 5000);
       setInterval(loadPreview, 5000);
+      setInterval(loadTimeline, 5000);
     </script>
   </body>
 </html>

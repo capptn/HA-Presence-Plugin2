@@ -4,9 +4,11 @@ import json
 import threading
 import time
 import requests
+from collections import defaultdict
 from datetime import datetime, timedelta
 from engine import build_probability_map
 from scheduler import plan_day, planned_actions
+
 
 app = Flask(__name__, static_folder="web", static_url_path="")
 
@@ -172,6 +174,32 @@ def api_preview():
             "action": a["action"]
         }
         for a in sorted(planned_actions, key=lambda x: x["time"])[:20]
+    ])
+
+@app.route("/api/timeline")
+def api_timeline():
+    timeline = defaultdict(list)
+
+    for a in planned_actions:
+        timeline[a["entity"]].append({
+            "time": a["time"].strftime("%H:%M"),
+            "action": a["action"]
+        })
+
+    return jsonify(timeline)
+
+@app.route("/api/heatmap")
+def api_heatmap():
+    heat = defaultdict(int)
+
+    for a in planned_actions:
+        slot = a["time"].strftime("%H:%M")
+        if a["action"] == "turn_on":
+            heat[slot] += 1
+
+    return jsonify([
+        {"time": k, "value": v}
+        for k, v in sorted(heat.items())
     ])
 
 
