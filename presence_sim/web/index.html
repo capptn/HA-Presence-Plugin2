@@ -126,7 +126,8 @@
 
         data.forEach((p) => {
           const li = document.createElement("li");
-          li.textContent = `${p.time} → ${p.entity} (${p.action})`;
+          const icon = p.action === "turn_on" ? "💡 AN" : "🌑 AUS";
+          li.textContent = `${p.time} – ${p.entity} → ${icon}`;
           ul.appendChild(li);
         });
       }

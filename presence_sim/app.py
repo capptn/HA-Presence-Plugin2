@@ -18,8 +18,10 @@ DEFAULT_CONFIG = {
     "entities": [],
     "slot_minutes": 15,
     "lookback_days": 14,
-    "window_start": "18:00",
-    "window_end": "23:59"
+    "window_start": "06:00",
+    "window_end": "23:30",
+    "min_on_minutes": 10,
+    "max_on_minutes": 45
 }
 
 simulation_running = False
@@ -169,7 +171,7 @@ def api_preview():
             "entity": a["entity"],
             "action": a["action"]
         }
-        for a in planned_actions[:10]
+        for a in sorted(planned_actions, key=lambda x: x["time"])[:20]
     ])
 
 
