@@ -108,13 +108,18 @@ def extend_plan(cfg: dict, now: Optional[datetime] = None) -> dict:
             for t in sampled:
                 # jitter +/- 10 minutes
                 jitter = random.randint(-10, 10)
-                dt = datetime.combine(now.date(), t).replace(tzinfo=now.tzinfo) + timedelta(minutes=jitter)
+                dt = datetime.combine(now.date(), t).replace(
+                    second=0, microsecond=0
+                )
 
                 # If dt already passed, shift by +1 day (and maybe +2) to land in horizon
                 while dt < now:
                     dt += timedelta(days=1)
-                # If still beyond horizon, try the same time on next day only if within horizon
-                if dt <= target_end:
+
+                while dt > target_end:
+                    dt -= timedelta(days=1)
+
+                if now <= dt <= target_end:
                     candidates.append(dt)
 
         # fallback: generate some times evenly spread within horizon inside window
@@ -173,5 +178,22 @@ def extend_plan(cfg: dict, now: Optional[datetime] = None) -> dict:
         minutes_ahead = int((farthest - now).total_seconds() // 60)
     else:
         minutes_ahead = 0
+
+    if not planned_actions:
+        print("⚠️ Rolling Planner fallback – forcing minimal plan")
+
+    base = now + timedelta(minutes=10)
+
+    for entity in entities:
+        planned_actions.append({
+            "time": base,
+            "entity": entity,
+            "action": "turn_on"
+        })
+        planned_actions.append({
+            "time": base + timedelta(minutes=20),
+            "entity": entity,
+            "action": "turn_off"
+        })
 
     return {"extended": True, "added": added, "minutes_ahead": minutes_ahead, "planned": len(planned_actions)}
