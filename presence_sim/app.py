@@ -122,7 +122,9 @@ def simulation_loop():
         # 🔁 Rolling planning: extend when we run low
         try:
             cfg = load_config()
+            print("ROLLING PLANNER TICK", now)
             extend_plan(cfg, now=now)
+            print("PLANNED ACTIONS:", len(planned_actions))
         except Exception as e:
             print("extend_plan error:", e)
 
