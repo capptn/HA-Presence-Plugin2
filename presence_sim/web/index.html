@@ -53,7 +53,44 @@
 
     <h3>Balken-Timeline</h3>
     <div id="timeline"></div>
+    <h3>Planungs-Einstellungen</h3>
 
+    <label>
+      Planungshorizont (Minuten):
+      <input
+        id="plan_horizon_minutes"
+        type="number"
+        min="60"
+        step="30"
+      /> </label
+    ><br /><br />
+
+    <label>
+      Nachplanen, wenn weniger als (Minuten):
+      <input
+        id="refill_threshold_minutes"
+        type="number"
+        min="15"
+        step="15"
+      /> </label
+    ><br /><br />
+
+    <label>
+      Sessions pro Entität:
+      <input id="sessions_per_entity" type="number" min="1" max="5" /> </label
+    ><br /><br />
+
+    <label>
+      Slot-Größe (Minuten):
+      <input id="slot_minutes" type="number" min="5" step="5" /> </label
+    ><br /><br />
+
+    <label>
+      Lernzeitraum (Tage):
+      <input id="lookback_days" type="number" min="3" step="1" /> </label
+    ><br /><br />
+
+    <button id="saveConfig">💾 Einstellungen speichern</button>
     <style>
       .timeline-row {
         margin-bottom: 6px;
@@ -151,10 +188,54 @@
       };
 
       async function loadConfig() {
-        const cfg = await fetch("api/config").then((r) => r.json());
-        activeEntities = cfg.entities || [];
-        renderActive();
-      }
+  config = await fetch("api/config").then(r => r.json());
+
+  // Entitäten (falls schon da)
+  activeEntities = config.entities || [];
+  renderActive();
+
+  // Planner-Settings
+  document.getElementById("plan_horizon_minutes").value =
+    config.plan_horizon_minutes ?? 240;
+
+  document.getElementById("refill_threshold_minutes").value =
+    config.refill_threshold_minutes ?? 60;
+
+  document.getElementById("sessions_per_entity").value =
+    config.sessions_per_entity ?? 2;
+
+  document.getElementById("slot_minutes").value =
+    config.slot_minutes ?? 15;
+
+  document.getElementById("lookback_days").value =
+    config.lookback_days ?? 14;
+}
+
+document.getElementById("saveConfig").onclick = async () => {
+  config.plan_horizon_minutes =
+    parseInt(document.getElementById("plan_horizon_minutes").value);
+
+  config.refill_threshold_minutes =
+    parseInt(document.getElementById("refill_threshold_minutes").value);
+
+  config.sessions_per_entity =
+    parseInt(document.getElementById("sessions_per_entity").value);
+
+  config.slot_minutes =
+    parseInt(document.getElementById("slot_minutes").value);
+
+  config.lookback_days =
+    parseInt(document.getElementById("lookback_days").value);
+
+  await fetch("api/config", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(config)
+  });
+
+  document.getElementById("status").innerText =
+    "Einstellungen gespeichert ✅ (wirken beim nächsten Nachplanen)";
+};
 
       async function loadPreview() {
         const data = await fetch("api/preview").then((r) => r.json());
