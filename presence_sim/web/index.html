@@ -51,8 +51,36 @@
     <h3>Nächste geplante Aktionen</h3>
     <ul id="preview"></ul>
 
-    <h3>Balken-Timeline</h3>
-    <div id="timeline"></div>
+    <h3>Aktions-Historie</h3>
+    <table border="1" cellpadding="6">
+      <thead>
+        <tr>
+          <th>Zeit</th>
+          <th>Entität</th>
+          <th>Aktion</th>
+        </tr>
+      </thead>
+      <tbody id="history"></tbody>
+    </table>
+    <div style="display: hidden">
+      <h3>Balken-Timeline</h3>
+      <div id="timeline"></div>
+      <h3>Heatmap (Aktivitätsdichte)</h3>
+      <div id="heatmap"></div>
+
+      <style>
+        .heat-row {
+          display: flex;
+          align-items: center;
+          margin-bottom: 4px;
+        }
+        .heat-bar {
+          height: 14px;
+          margin-left: 8px;
+          background: red;
+        }
+      </style>
+    </div>
     <h3>Planungs-Einstellungen</h3>
 
     <label>
@@ -105,21 +133,6 @@
       }
       .off {
         background: #ccc;
-      }
-    </style>
-    <h3>Heatmap (Aktivitätsdichte)</h3>
-    <div id="heatmap"></div>
-
-    <style>
-      .heat-row {
-        display: flex;
-        align-items: center;
-        margin-bottom: 4px;
-      }
-      .heat-bar {
-        height: 14px;
-        margin-left: 8px;
-        background: red;
       }
     </style>
 
@@ -188,54 +201,59 @@
       };
 
       async function loadConfig() {
-  config = await fetch("api/config").then(r => r.json());
+        config = await fetch("api/config").then((r) => r.json());
 
-  // Entitäten (falls schon da)
-  activeEntities = config.entities || [];
-  renderActive();
+        // Entitäten (falls schon da)
+        activeEntities = config.entities || [];
+        renderActive();
 
-  // Planner-Settings
-  document.getElementById("plan_horizon_minutes").value =
-    config.plan_horizon_minutes ?? 240;
+        // Planner-Settings
+        document.getElementById("plan_horizon_minutes").value =
+          config.plan_horizon_minutes ?? 240;
 
-  document.getElementById("refill_threshold_minutes").value =
-    config.refill_threshold_minutes ?? 60;
+        document.getElementById("refill_threshold_minutes").value =
+          config.refill_threshold_minutes ?? 60;
 
-  document.getElementById("sessions_per_entity").value =
-    config.sessions_per_entity ?? 2;
+        document.getElementById("sessions_per_entity").value =
+          config.sessions_per_entity ?? 2;
 
-  document.getElementById("slot_minutes").value =
-    config.slot_minutes ?? 15;
+        document.getElementById("slot_minutes").value =
+          config.slot_minutes ?? 15;
 
-  document.getElementById("lookback_days").value =
-    config.lookback_days ?? 14;
-}
+        document.getElementById("lookback_days").value =
+          config.lookback_days ?? 14;
+      }
 
-document.getElementById("saveConfig").onclick = async () => {
-  config.plan_horizon_minutes =
-    parseInt(document.getElementById("plan_horizon_minutes").value);
+      document.getElementById("saveConfig").onclick = async () => {
+        config.plan_horizon_minutes = parseInt(
+          document.getElementById("plan_horizon_minutes").value
+        );
 
-  config.refill_threshold_minutes =
-    parseInt(document.getElementById("refill_threshold_minutes").value);
+        config.refill_threshold_minutes = parseInt(
+          document.getElementById("refill_threshold_minutes").value
+        );
 
-  config.sessions_per_entity =
-    parseInt(document.getElementById("sessions_per_entity").value);
+        config.sessions_per_entity = parseInt(
+          document.getElementById("sessions_per_entity").value
+        );
 
-  config.slot_minutes =
-    parseInt(document.getElementById("slot_minutes").value);
+        config.slot_minutes = parseInt(
+          document.getElementById("slot_minutes").value
+        );
 
-  config.lookback_days =
-    parseInt(document.getElementById("lookback_days").value);
+        config.lookback_days = parseInt(
+          document.getElementById("lookback_days").value
+        );
 
-  await fetch("api/config", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(config)
-  });
+        await fetch("api/config", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(config),
+        });
 
-  document.getElementById("status").innerText =
-    "Einstellungen gespeichert ✅ (wirken beim nächsten Nachplanen)";
-};
+        document.getElementById("status").innerText =
+          "Einstellungen gespeichert ✅ (wirken beim nächsten Nachplanen)";
+      };
 
       async function loadPreview() {
         const data = await fetch("api/preview").then((r) => r.json());
@@ -302,6 +320,23 @@ document.getElementById("saveConfig").onclick = async () => {
           document.getElementById("status").innerText = "Simulation gestoppt ⏹";
         }
       }
+      async function loadHistory() {
+        const data = await fetch("api/history").then((r) => r.json());
+        const tbody = document.getElementById("history");
+        tbody.innerHTML = "";
+
+        data.slice(0, 50).forEach((h) => {
+          const tr = document.createElement("tr");
+
+          tr.innerHTML = `
+      <td>${h.time}</td>
+      <td>${h.entity}</td>
+      <td>${h.action === "turn_on" ? "💡 AN" : "🌑 AUS"}</td>
+    `;
+
+          tbody.appendChild(tr);
+        });
+      }
 
       loadStatus();
       loadEntities();
@@ -309,9 +344,11 @@ document.getElementById("saveConfig").onclick = async () => {
       loadTimeline();
       loadHeatmap();
       loadPreview();
+      loadHistory();
       setInterval(loadHeatmap, 5000);
       setInterval(loadPreview, 5000);
       setInterval(loadTimeline, 5000);
+      setInterval(loadHistory, 5000);
     </script>
   </body>
 </html>

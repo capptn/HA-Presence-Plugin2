@@ -35,6 +35,9 @@ STATE_PATH = "/data/state.json"
 simulation_running = False
 simulation_started_at = None
 
+ACTION_HISTORY_PATH = "/data/action_history.json"
+MAX_HISTORY_ENTRIES = 500
+
 
 # -----------------------------
 # Helper
@@ -80,6 +83,33 @@ def load_state():
             state = json.load(f)
             simulation_running = state.get("running", False)
             simulation_started_at = state.get("started_at")
+
+def load_action_history():
+    if os.path.exists(ACTION_HISTORY_PATH):
+        try:
+            with open(ACTION_HISTORY_PATH, "r") as f:
+                return json.load(f)
+        except Exception:
+            return []
+    return []
+
+
+def log_action(entity, action, source="simulation"):
+    history = load_action_history()
+
+    history.append({
+        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "entity": entity,
+        "action": action,
+        "source": source
+    })
+
+    # Begrenzen (Ringpuffer)
+    history = history[-MAX_HISTORY_ENTRIES:]
+
+    os.makedirs("/data", exist_ok=True)
+    with open(ACTION_HISTORY_PATH, "w") as f:
+        json.dump(history, f)
 # -----------------------------
 # Simulation Loop
 # -----------------------------
@@ -106,6 +136,11 @@ def simulation_loop():
                         headers=get_headers(),
                         json={"entity_id": action["entity"]},
                         timeout=10,
+                    )
+                    log_action(
+                        entity=action["entity"],
+                        action=action["action"],
+                        source="simulation"
                     )
                 except Exception as e:
                     print("execute error:", e)
@@ -237,6 +272,11 @@ def api_status():
         "running": simulation_running,
         "started_at": simulation_started_at
     })
+
+@app.route("/api/history")
+def api_history():
+    history = load_action_history()
+    return jsonify(list(reversed(history)))  # neueste zuerst
 
 if __name__ == "__main__":
     load_state()
