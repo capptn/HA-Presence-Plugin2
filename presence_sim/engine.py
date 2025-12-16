@@ -13,10 +13,10 @@ HEADERS = {
     "Content-Type": "application/json",
 }
 
-# -------------------------
-# Zeit-Phasen
-# -------------------------
-def day_phase(dt):
+# -------------------------------------------------
+# Tagesphasen
+# -------------------------------------------------
+def day_phase(dt: datetime) -> str:
     h = dt.hour
     if 5 <= h < 9:
         return "morning"
@@ -27,10 +27,10 @@ def day_phase(dt):
     return "night"
 
 
-# -------------------------
-# Recorder History
-# -------------------------
-def fetch_history(entity_id, days):
+# -------------------------------------------------
+# Recorder History laden
+# -------------------------------------------------
+def fetch_history(entity_id: str, days: int):
     end = datetime.utcnow()
     start = end - timedelta(days=days)
 
@@ -47,32 +47,27 @@ def fetch_history(entity_id, days):
     return r.json()[0] if r.json() else []
 
 
-# -------------------------
-# Laufzeiten aus Historie
-# -------------------------
+# -------------------------------------------------
+# Laufzeiten aus Historie extrahieren
+# -------------------------------------------------
 def extract_on_durations(history):
-    """
-    Liefert:
-    {
-      "morning": [12, 8, 15],
-      "evening": [45, 62, 30]
-    }
-    """
     durations = defaultdict(list)
     last_on = None
     last_phase = None
 
     for e in history:
-        state = e["state"]
-        ts = datetime.fromisoformat(e["last_changed"])
+        try:
+            ts = datetime.fromisoformat(e["last_changed"])
+        except Exception:
+            continue
 
-        if state == "on":
+        if e["state"] == "on":
             last_on = ts
             last_phase = day_phase(ts)
 
-        if state == "off" and last_on:
+        elif e["state"] == "off" and last_on:
             minutes = int((ts - last_on).total_seconds() / 60)
-            if 1 <= minutes <= 300:  # Plausibilitätsfilter
+            if 1 <= minutes <= 300:
                 durations[last_phase].append(minutes)
             last_on = None
             last_phase = None
@@ -80,13 +75,10 @@ def extract_on_durations(history):
     return durations
 
 
-# -------------------------
-# Statistische Laufzeit
-# -------------------------
-def learned_runtime(durations, phase):
-    """
-    Gibt eine realistische Laufzeit in Minuten zurück
-    """
+# -------------------------------------------------
+# Gelerntes Laufzeit-Modell
+# -------------------------------------------------
+def learned_runtime(durations, phase: str) -> int:
     values = durations.get(phase, [])
 
     if len(values) >= 3:
