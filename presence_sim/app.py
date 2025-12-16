@@ -6,7 +6,7 @@ import time
 import requests
 from collections import defaultdict
 from datetime import datetime, timedelta
-from scheduler import plan_day, planned_actions
+from scheduler import extend_plan, planned_actions
 
 
 app = Flask(__name__, static_folder="web", static_url_path="")
@@ -22,7 +22,12 @@ DEFAULT_CONFIG = {
     "window_start": "06:00",
     "window_end": "23:30",
     "min_on_minutes": 10,
-    "max_on_minutes": 45
+    "max_on_minutes": 45,
+    "plan_horizon_minutes": 240,
+"refill_threshold_minutes": 60,
+"sessions_per_entity": 2,
+"max_future_actions": 400,
+
 }
 
 STATE_PATH = "/data/state.json"
@@ -83,7 +88,15 @@ def simulation_loop():
 
     while simulation_running:
         now = datetime.now().replace(second=0, microsecond=0)
-        print("Simulation tick at", now.strftime("%H:%M"));
+
+        # 🔁 Rolling planning: extend when we run low
+        try:
+            cfg = load_config()
+            extend_plan(cfg, now=now)
+        except Exception as e:
+            print("extend_plan error:", e)
+
+        # execute due actions
         for action in planned_actions[:]:
             if action["time"] <= now:
                 domain = action["entity"].split(".")[0]
@@ -94,8 +107,9 @@ def simulation_loop():
                         json={"entity_id": action["entity"]},
                         timeout=10,
                     )
-                except:
-                    pass
+                except Exception as e:
+                    print("execute error:", e)
+
                 planned_actions.remove(action)
 
         time.sleep(30)
@@ -142,7 +156,7 @@ def api_start():
         return jsonify({"running": True})
 
     cfg = load_config()
-    plan_day(cfg)
+    extend_plan(cfg)   # statt plan_day(cfg)
 
     simulation_running = True
     simulation_started_at = datetime.now().strftime("%H:%M")
